@@ -1,0 +1,17 @@
+# 파이 차트
+
+판매량 적은 제품
+
+# 판매량이 적은 제품 추출 (판매량이 가장 적은 상위 5개 제품)
+bottom_5_products = df.groupby('제품명').agg({'주문량': 'sum'}).sort_values(by='주문량').head(5)
+
+# '제품명'을 컬럼으로 리셋 (index -> 컬럼으로 변경)
+bottom_5_products = bottom_5_products.reset_index()
+
+# 파이 차트로 시각화
+bottom_5_products['제품명'] = bottom_5_products['제품명'].astype(str)
+plt.figure(figsize=(8, 8))
+plt.pie(bottom_5_products['주문량'], labels=bottom_5_products['제품명'], autopct='%1.1f%%', startangle=140, colors=sns.color_palette("Set2", n_colors=5))
+plt.title('판매량이 적은 상위 5개 제품의 판매 비율 (Pie Chart)')
+plt.axis('equal')
+plt.show()

@@ -1,0 +1,98 @@
+import pandas as pd
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
+from sklearn.preprocessing import StandardScaler
+
+# 데이터 불러오기
+file_path = 'C:/Users/Admin/Downloads/last 최종.csv'
+df = pd.read_csv(file_path, encoding='cp949')
+
+# '단가' 컬럼에서 '$'와 공백을 제거하고 숫자로 변환
+df['단가'] = df['단가'].replace({'\$': '', ',': '', ' ': ''}, regex=True)
+df['단가'] = pd.to_numeric(df['단가'], errors='coerce')
+
+# 결측치 처리
+df.dropna(subset=['단가'], inplace=True)
+
+# 날짜 컬럼을 datetime 형식으로 변환
+df['주문날짜'] = pd.to_datetime(df['주문날짜'], errors='coerce')
+
+# 특성 및 타겟 설정
+X = df[['단가', '주문량']]
+y = df[['재고손실']]
+
+# 데이터 표준화
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# 훈련 세트와 테스트 세트로 나누기
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Ridge Regression 모델 (L2 정규화) 사용
+model = Ridge(alpha=1.0)  # alpha는 정규화 강도
+model.fit(X_train, y_train)
+
+# 예측값 계산
+y_pred = model.predict(X_test)
+
+# R² 값 계산
+r2 = r2_score(y_test, y_pred)
+print(f"R-squared (알제곱): {r2}")
+
+####### 월별 제품별 판매량 구하기 #######
+
+# '주문날짜'를 기준으로 월별로 그룹화하여 제품별 판매량 합계 계산
+df['년월'] = df['주문날짜'].dt.to_period('M')  # 월 단위로 period 변환
+
+# 월별 제품별 판매량 합계 계산
+monthly_product_sales = df.groupby(['년월', '제품명'])['판매량'].sum().unstack(fill_value=0)
+
+# 월별 제품별 판매량 출력
+print("\n월별 제품별 판매량:")
+print(monthly_product_sales)
+
+####### 월별 제품별 비율 구하기 #######
+
+# 1. 월별 전체 판매량 계산
+total_sales_monthly = df.groupby('년월')['판매량'].sum()
+
+# 2. 각 월별 제품별 비율 계산 (제품별 판매량 / 전체 판매량)
+product_ratio_monthly = monthly_product_sales.div(total_sales_monthly, axis=0) * 100
+
+# 월별 제품별 판매량 비율 출력
+print("\n월별 제품별 판매량 비율:")
+print(product_ratio_monthly)
+
+####### 발주량 결정 기준 #######
+
+# 발주량 늘려야 하는 제품
+# 판매량 대비 재고손실이 큰 제품들: 판매량이 높고 재고손실이 큰 제품
+df['판매량대비재고손실비율'] = df['재고손실'] / df['판매량'] * 100  # 판매량 대비 재고손실 비율 계산
+
+# 발주량을 늘려야 할 제품 (판매량 높고 재고손실 큰 제품)
+increase_order_products = df[df['판매량대비재고손실비율'] > df['판매량대비재고손실비율'].median()]
+
+# 발주량 줄여야 하는 제품
+# 판매량이 낮고 재고가 많은 제품
+decrease_order_products = df[df['판매량'] < df['판매량'].median()]
+
+# 발주량 늘려야 할 제품 출력
+print("\n발주량을 늘려야 하는 제품:")
+print(increase_order_products[['제품명', '판매량', '재고손실', '판매량대비재고손실비율']])
+
+# 발주량 줄여야 할 제품 출력
+print("\n발주량을 줄여야 하는 제품:")
+print(decrease_order_products[['제품명', '판매량', '재고손실']])
+
+####### 판매량 계산 출력 #######
+
+# 전체 판매량 합계 출력
+total_sales = df['판매량'].sum()
+print(f"\n전체 판매량 합계: {total_sales}")
+
+# 판매량 비율을 수식으로 표현 (예시로 첫 번째 제품에 대해 계산)
+first_product_sales = monthly_product_sales.iloc[:, 0]  # 첫 번째 제품의 판매량
+product_sales_ratio = (first_product_sales / total_sales_monthly) * 100  # 제품 판매 비율
+print(f"\n첫 번째 제품의 월별 판매량 비율:")
+print(product_sales_ratio)

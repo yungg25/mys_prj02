@@ -1,0 +1,37 @@
+# NaN이 있는 칼럼을 제외하고 필요한 칼럼만 선택
+optimized_data_clean = optimized_data.dropna(subset=['Stock_Quantity', 'Unit_Price', 'Predicted_Sales_Volume', 'Optimal_Inventory'])
+
+# 남은 재고 (Stock Quantity)
+optimized_data_clean['Remaining_Stock'] = optimized_data_clean['Stock_Quantity']
+
+# 남은 재고 * 단가 (Remaining Stock Value)
+optimized_data_clean['Remaining_Stock_Value'] = optimized_data_clean['Remaining_Stock'] * optimized_data_clean['Unit_Price']
+
+# 평균 판매량 (Predicted Sales Volume)
+average_sales = optimized_data_clean['Predicted_Sales_Volume'].mean()
+
+# 평균 재고 (Average Stock)
+average_stock = optimized_data_clean['Stock_Quantity'].mean()
+
+# 적정량 (Optimal Inventory) 계산
+optimized_data_clean['Optimal_Inventory'] = (average_sales * 2) + (average_sales * 0.5)  # 예시로 리드타임 2일, 안전재고 비율 0.5로 가정
+
+# 결과 확인
+print(optimized_data_clean[['Stock_Quantity', 'Unit_Price', 'Remaining_Stock_Value', 'Predicted_Sales_Volume', 'Optimal_Inventory']])
+
+# 시각화 (Optional)
+import matplotlib.pyplot as plt
+
+# 재고, 남은 재고 값 시각화
+plt.figure(figsize=(12, 6))
+plt.subplot(1, 2, 1)
+plt.hist(optimized_data_clean['Remaining_Stock'], bins=20, color='skyblue')
+plt.title('Distribution of Remaining Stock')
+
+# 남은 재고 * 단가 값 시각화
+plt.subplot(1, 2, 2)
+plt.hist(optimized_data_clean['Remaining_Stock_Value'], bins=20, color='orange')
+plt.title('Distribution of Remaining Stock Value')
+
+plt.tight_layout()
+plt.show()

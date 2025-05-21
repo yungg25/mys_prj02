@@ -1,0 +1,12 @@
+# 파이 차트
+
+판매량 많은 제품
+
+top_5_products['제품명'] = top_5_products['제품명'].astype(str)
+plt.figure(figsize=(8, 8))
+plt.pie(top_5_products['주문량'], labels=top_5_products['제품명'], autopct='%1.1f%%', startangle=140, colors=sns.color_palette("Set3", n_colors=5))
+plt.title('상위 5개 제품의 판매 비율 (Pie Chart)')
+plt.axis('equal')
+
+# 그래프 화면에 표시
+plt.show()

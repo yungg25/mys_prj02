@@ -1,0 +1,51 @@
+import pandas as pd
+
+# 데이터 불러오기
+file_path = 'C:/Users/Admin/Downloads/last 최종.csv'  # CSV 파일 경로
+df = pd.read_csv(file_path, encoding='cp949')  # cp949 인코딩으로 CSV 파일 읽기
+
+# '단가' 컬럼에서 '$'와 공백을 제거하고 숫자로 변환
+df['단가'] = df['단가'].replace({'\$': '', ',': '', ' ': ''}, regex=True)  # '$'와 ',' 제거
+df['단가'] = pd.to_numeric(df['단가'], errors='coerce')  # 숫자로 변환, 변환 실패 시 NaN 처리
+
+# 결측치 처리: '단가' 컬럼에서 결측치가 있는 행 제거
+df.dropna(subset=['단가', '재고손실'], inplace=True)  # '단가'와 '재고손실' 모두 결측치 처리
+
+# 날짜 컬럼을 datetime 형식으로 변환
+df['주문날짜'] = pd.to_datetime(df['주문날짜'], errors='coerce')  # 날짜 형식으로 변환
+
+# '주문날짜'를 기준으로 '년월' 컬럼을 생성
+df['년월'] = df['주문날짜'].dt.to_period('M')  # 월 단위로 period 변환
+
+# '년월' 컬럼에서 '년'과 '월'을 추출
+df['년'] = df['년월'].dt.year  # '년월'에서 '년' 추출
+df['월'] = df['년월'].dt.month  # '년월'에서 '월' 추출
+
+
+####### 1. 시간데이터 전부 빼고, 전체 데이터에서 상위 판매량 제품 5개 추리기 #######
+# 시간 데이터 제거
+df_no_time = df.drop(columns=['주문날짜', '년월'])
+
+# '주문량'을 기준으로 상위 5개 제품 추출
+top_5_products = df_no_time.groupby('제품명').agg({'주문량': 'sum'}).sort_values(by='주문량', ascending=False).head(5)
+print("\n상위 판매량 제품 5개:")
+print(top_5_products)
+
+
+####### 2. 업체별로 그룹화하여 판매량 상위 업체 5개 추리기 #######
+# '업체명'을 기준으로 그룹화하여 판매량 합계 계산
+top_5_companies = df.groupby('업체명').agg({'주문량': 'sum'}).sort_values(by='주문량', ascending=False).head(5)
+print("\n판매량 상위 업체 5개:")
+print(top_5_companies)
+
+
+####### 3. 발주량 관련 중복된 제품 데이터를 합쳐서 평균을 낸 후, 평균값으로 제품의 판매량을 늘릴지 줄일지 파악 #######
+# '제품명'으로 그룹화하여 평균 '단가'와 '주문량'을 계산
+df_avg = df.groupby('제품명').agg({'단가': 'mean', '주문량': 'mean'}).reset_index()
+
+# '주문량'의 평균값을 기준으로 늘릴지 줄일지 파악
+df_avg['판매량 변화'] = df_avg['주문량'].apply(lambda x: '늘림' if x > df_avg['주문량'].mean() else '줄임')
+
+# 결과 출력
+print("\n중복된 제품 데이터 합친 평균값과 판매량 변화 파악:")
+print(df_avg.head())

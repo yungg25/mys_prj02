@@ -1,0 +1,20 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import squarify
+import seaborn as sns
+
+# 상위 판매량 제품 5개 추출 (이미 실행된 코드 가정)
+top_5_products = df.groupby('제품명').agg({'주문량': 'sum'}).sort_values(by='주문량', ascending=False).head(5)
+
+# 제품명 컬럼을 데이터프레임으로 변환
+top_5_products = top_5_products.reset_index()
+
+# 제품별 판매량 트리 맵
+plt.figure(figsize=(10, 6))
+squarify.plot(sizes=top_5_products['주문량'], label=top_5_products['제품명'], alpha=0.7, color=sns.color_palette('Set3', n_colors=5))
+plt.title('상위 5개 제품의 트리 맵')
+plt.axis('off')  # 축 숨기기
+
+# 그래프 저장
+plt.savefig('top_5_products_tree_map.png', bbox_inches='tight')  # 파일 이름과 경로 지정
+plt.show()

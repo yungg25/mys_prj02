@@ -1,0 +1,153 @@
+import pandas as pd
+from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.preprocessing import StandardScaler
+
+# 데이터 불러오기
+file_path = 'C:/Users/Admin/Downloads/last 최종.csv'  # CSV 파일 경로
+df = pd.read_csv(file_path, encoding='cp949')  # cp949 인코딩으로 CSV 파일 읽기
+
+# '단가' 컬럼에서 '$'와 공백을 제거하고 숫자로 변환
+df['단가'] = df['단가'].replace({'\$': '', ',': '', ' ': ''}, regex=True)  # '$'와 ',' 제거
+df['단가'] = pd.to_numeric(df['단가'], errors='coerce')  # 숫자로 변환, 변환 실패 시 NaN 처리
+
+# 결측치 처리: '단가' 컬럼에서 결측치가 있는 행 제거
+df.dropna(subset=['단가', '재고손실'], inplace=True)  # '단가'와 '재고손실' 모두 결측치 처리
+
+# 날짜 컬럼을 datetime 형식으로 변환
+df['주문날짜'] = pd.to_datetime(df['주문날짜'], errors='coerce')  # 날짜 형식으로 변환
+
+# '주문날짜'를 기준으로 '년월' 컬럼을 생성
+df['년월'] = df['주문날짜'].dt.to_period('M')  # 월 단위로 period 변환
+
+# '년월' 컬럼에서 '년'과 '월'을 추출
+df['년'] = df['년월'].dt.year  # '년월'에서 '년' 추출
+df['월'] = df['년월'].dt.month  # '년월'에서 '월' 추출
+
+####### 첫 번째 모델: 재고손실 예측 (Ridge Regression) #######
+
+# 특성 및 타겟 설정 (첫 번째 모델: 재고손실 예측)
+X_ridge = df[['단가', '주문량']]  # 특성: 단가와 주문량
+y_ridge = df['재고손실']  # 타겟: 재고손실 (Series 형태로 수정)
+
+# 데이터 표준화
+scaler_ridge = StandardScaler()  # 표준화 객체 생성
+X_ridge_scaled = scaler_ridge.fit_transform(X_ridge)  # 특성 데이터 표준화
+
+# 훈련 세트와 테스트 세트로 나누기 (80% 훈련, 20% 테스트)
+X_train_ridge, X_test_ridge, y_train_ridge, y_test_ridge, X_train_index, X_test_index = train_test_split(
+    X_ridge_scaled, y_ridge, df.index, test_size=0.2, random_state=42
+)
+
+# Ridge Regression 모델 (L2 정규화) 사용
+ridge_model = Ridge(alpha=1.0)  # alpha는 정규화 강도
+ridge_model.fit(X_train_ridge, y_train_ridge)  # 모델 훈련
+
+# 예측값 계산
+y_pred_ridge = ridge_model.predict(X_test_ridge)
+
+# R² 값 계산
+r2_ridge = r2_score(y_test_ridge, y_pred_ridge)  # R² 값 계산
+print(f"R-squared (알제곱) - 재고손실 예측: {r2_ridge}")
+
+# 예측값과 실제값 - 재고손실 예측 (제품명 포함)
+df_test_ridge = pd.DataFrame({
+    '제품명': df.loc[X_test_index, '제품명'],  # 인덱스를 사용하여 제품명 매칭
+    '실제 재고손실': y_test_ridge,
+    '예상 재고손실': y_pred_ridge
+})
+print("\n예측값과 실제값 - 재고손실 예측:")
+print(df_test_ridge.head(10))  # 예시로 상위 10개만 출력
+
+####### 두 번째 모델 (랜덤 포레스트) - 주문량 예측 #######
+
+# 특성 선택: '단가', '주문량', '년', '월', '제품명'
+X_forest = df[['단가', '주문량', '년', '월']]
+y_forest = df['주문량']  # 예측할 값은 '주문량'
+
+# 데이터 표준화
+scaler_forest = StandardScaler()  # 표준화 객체 생성
+X_forest_scaled = scaler_forest.fit_transform(X_forest)
+
+# 훈련 세트와 테스트 세트로 나누기
+X_train_forest, X_test_forest, y_train_forest, y_test_forest, X_train_index, X_test_index = train_test_split(
+    X_forest_scaled, y_forest, df.index, test_size=0.2, random_state=42
+)
+
+# 랜덤 포레스트 모델 설정
+forest_model = RandomForestRegressor(n_estimators=100, random_state=42)
+forest_model.fit(X_train_forest, y_train_forest)
+
+# 테스트 세트 예측
+y_pred_forest = forest_model.predict(X_test_forest)
+
+# 예측 결과 평가 (MAE)
+mae_forest = mean_absolute_error(y_test_forest, y_pred_forest)
+print(f"Mean Absolute Error (MAE) - 주문량 예측: {mae_forest}")
+
+# 예측값과 제품명 - 주문량 예측 (제품명 포함)
+df_test_forest = df.loc[X_test_index]  # X_test_index를 통해 실제 데이터 가져오기
+df_test_forest['예상 주문량'] = y_pred_forest
+
+# 예측값과 실제값 - 주문량 예측
+result_df_forest = df_test_forest[['제품명', '예상 주문량']].reset_index(drop=True)
+print("\n예측값과 제품명 - 주문량 예측:")
+print(result_df_forest.head(10))  # 예시로 상위 10개만 출력
+
+R-squared (알제곱) - 재고손실 예측: 0.6321680324722658
+
+예측값과 실제값 - 재고손실 예측:
+                   제품명  실제 재고손실    예상 재고손실
+1054       White Sugar      -52 -31.510220
+28607              Cod       24  28.748914
+30862        Rye Bread      -16 -28.421012
+37766            Peach      -63 -52.808509
+45263      Bread Flour       33   9.177890
+55242       Sesame Oil       27  -2.852775
+95554  Sourdough Bread      -14 -15.155246
+24021      Bell Pepper      -37 -44.649143
+53156        Rye Bread       -7  32.638333
+9922     Sunflower Oil      -64 -40.651001
+Mean Absolute Error (MAE) - 주문량 예측: 0.0
+
+예측값과 제품명 - 주문량 예측:
+               제품명  예상 주문량
+0      White Sugar    28.0
+1              Cod    87.0
+2        Rye Bread    31.0
+3            Peach     7.0
+4      Bread Flour    68.0
+5       Sesame Oil    56.0
+6  Sourdough Bread    44.0
+7      Bell Pepper    15.0
+8        Rye Bread    91.0
+9    Sunflower Oil    19.0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

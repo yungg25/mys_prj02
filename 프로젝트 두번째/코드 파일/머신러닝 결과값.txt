@@ -1,0 +1,17 @@
+각 모델의 비교:
+Random Forest
+MAE: 21.5099, RMSE: 25.6397
+XGBoost
+MAE: 23.3930, RMSE: 28.4675
+LightGBM
+MAE: 22.0818, RMSE: 26.3621
+Ridge 회귀
+MAE: 20.4124, RMSE: 23.7409
+ElasticNet
+MAE: 20.4384, RMSE: 23.7543
+SVR
+MAE: 20.3623, RMSE: 23.6877
+
+가장 적합한 모델:
+Ridge 회귀가 가장 적합한 모델
+
